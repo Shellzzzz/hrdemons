@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Demons — Daily Home Run Predictions</title>
+<meta name="description" content="AI-powered daily MLB home run predictions. Batter vs pitcher analysis, park factors, and more.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%23f5c842'/><text y='.9em' font-size='60' x='10'>😈</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#08090d;--bg2:#0f1118;--bg3:#171b26;
+    --surface:#1c2133;--surface2:#242a3d;
+    --gold:#f5c842;--gold2:#e8a800;
+    --green:#22c55e;--red:#ef4444;--blue:#3b82f6;
+    --text:#f0f2f8;--text2:#8892a4;--text3:#4a5568;
+    --border:#2a3348;--border2:#3a4560;
+    --accent:#ff5e3a;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+
+  header{background:linear-gradient(135deg,#0a0c14 0%,#13182a 50%,#0d1020 100%);border-bottom:1px solid var(--border);padding:0 2rem;position:sticky;top:0;z-index:100}
+  .header-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo-icon{width:38px;height:38px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px}
+  .logo-text{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--text)}
+  .logo-text span{color:var(--gold)}
+  .header-right{display:flex;align-items:center;gap:16px}
+  .date-badge{background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:6px 14px;font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--text2)}
+  .refresh-btn{background:var(--gold);color:#000;border:none;border-radius:6px;padding:8px 18px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s}
+  .refresh-btn:hover{background:var(--gold2);transform:translateY(-1px)}
+  .refresh-btn:disabled{opacity:.5;cursor:default;transform:none}
+
+  .ticker-wrap{background:var(--bg3);border-bottom:1px solid var(--border);overflow:hidden;height:36px;display:none;align-items:center}
+  .ticker-label{background:var(--gold);color:#000;font-size:11px;font-weight:600;padding:0 12px;height:100%;display:flex;align-items:center;white-space:nowrap;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;flex-shrink:0}
+  .ticker-scroll{display:flex;gap:40px;animation:ticker 50s linear infinite;padding-left:40px}
+  .ticker-scroll:hover{animation-play-state:paused}
+  @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .ticker-item{white-space:nowrap;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .ticker-name{color:var(--text);font-weight:500}
+  .ticker-odds{font-family:'JetBrains Mono',monospace;color:var(--gold)}
+
+  .stats-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 2rem}
+  .stats-bar-inner{max-width:1400px;margin:0 auto;display:flex;gap:32px;align-items:center;flex-wrap:wrap}
+  .stat-item{display:flex;align-items:center;gap:8px}
+  .stat-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px}
+  .stat-val{font-size:15px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--text)}
+  .stat-divider{width:1px;height:20px;background:var(--border)}
+  .live-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 2s ease-in-out infinite;display:inline-block}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+  main{max-width:1400px;margin:0 auto;padding:2rem}
+
+  .filters{display:flex;gap:10px;margin-bottom:2rem;flex-wrap:wrap;align-items:center}
+  .filter-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-right:4px}
+  .filter-btn{background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:7px 16px;font-size:13px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+  .filter-btn:hover{border-color:var(--border2);color:var(--text)}
+  .filter-btn.active{background:var(--gold);border-color:var(--gold);color:#000;font-weight:600}
+  .search-box{margin-left:auto;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 14px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;width:220px;transition:border .2s}
+  .search-box:focus{border-color:var(--border2)}
+  .search-box::placeholder{color:var(--text3)}
+
+  .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px}
+
+  .pred-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:all .25s;cursor:pointer;position:relative}
+  .pred-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+  .pred-card.elite{border-color:var(--gold);box-shadow:0 0 0 1px rgba(245,200,66,.15)}
+  .pred-card.elite::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--gold2))}
+
+  .card-header{padding:16px 18px 12px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--border)}
+  .player-info{display:flex;align-items:center;gap:12px}
+  .avatar{width:44px;height:44px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--gold);border:1px solid var(--border2);flex-shrink:0}
+  .player-name{font-weight:600;font-size:16px;color:var(--text);line-height:1.2}
+  .player-team{font-size:12px;color:var(--text2);margin-top:2px}
+  .hr-odds-badge{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;text-align:center;min-width:70px}
+  .odds-pct{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1;color:var(--text)}
+  .odds-pct.high{color:var(--gold)}
+  .odds-pct.medium{color:#f97316}
+  .odds-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
+
+  .card-matchup{padding:12px 18px;background:var(--bg3);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text2)}
+  .vs-badge{background:var(--surface2);border-radius:3px;padding:1px 5px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)}
+  .home-away{background:var(--surface2);border-radius:3px;padding:2px 6px;font-size:10px;color:var(--text3)}
+  .game-time{font-family:'JetBrains Mono',monospace;color:var(--text3)}
+
+  .card-stats{padding:14px 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .mini-stat{text-align:center}
+  .mini-stat-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;color:var(--text)}
+  .mini-stat-val.green{color:var(--green)}
+  .mini-stat-val.gold{color:var(--gold)}
+  .mini-stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+
+  .card-factors{padding:0 18px 14px;display:flex;gap:6px;flex-wrap:wrap}
+  .factor-tag{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px}
+  .factor-tag.pos{border-color:#22c55e33;color:var(--green)}
+  .factor-tag.neg{border-color:#ef444433;color:var(--red)}
+
+  .card-footer{padding:10px 18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .conf-bar-wrap{flex:1;margin-right:16px}
+  .conf-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .conf-bar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+  .conf-fill{height:100%;border-radius:2px}
+  .conf-fill.gold{background:var(--gold)}
+  .conf-fill.orange{background:#f97316}
+  .conf-fill.blue{background:var(--blue)}
+  .detail-btn{background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:5px;padding:5px 12px;font-size:12px;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+  .detail-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+  .section-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .section-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;color:var(--text)}
+  .section-count{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2)}
+  .elite-marker{color:var(--gold);font-size:13px}
+
+  .loading-state{text-align:center;padding:80px 20px;color:var(--text2)}
+  .spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .error-state{background:var(--surface);border:1px solid #ef444444;border-radius:12px;padding:32px;text-align:center;color:var(--red);margin:40px 0}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .25s}
+  .modal-overlay.open{opacity:1;pointer-events:all}
+  .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;transform:translateY(20px);transition:transform .25s}
+  .modal-overlay.open .modal{transform:translateY(0)}
+  .modal-header{padding:24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;position:sticky;top:0;background:var(--bg2);z-index:1}
+  .modal-close{background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+  .modal-body{padding:24px}
+  .modal-section{margin-bottom:24px}
+  .modal-section-title{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:12px}
+  .radar-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .radar-label{font-size:13px;color:var(--text2);width:160px;flex-shrink:0}
+  .radar-bar-wrap{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+  .radar-fill{height:100%;border-radius:3px}
+  .radar-val{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);width:50px;text-align:right}
+
+  footer{border-top:1px solid var(--border);padding:24px 2rem;text-align:center;color:var(--text3);font-size:12px;margin-top:60px}
+  .footer-inner{max-width:1400px;margin:0 auto}
+  .disclaimer{max-width:600px;margin:0 auto;line-height:1.6}
+
+  @media(max-width:600px){
+    .logo-text{font-size:20px}
+    .header-right{gap:8px}
+    .stats-bar-inner{gap:16px}
+    .stat-divider{display:none}
+    main{padding:1rem}
+    .cards-grid{grid-template-columns:1fr}
+    .search-box{width:150px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">😈</div>
+      <div class="logo-text">HR<span>DEMONS</span></div>
+    </div>
+    <div class="header-right">
+      <div class="date-badge" id="dateBadge">Loading...</div>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadPredictions()">↺ Refresh</button>
+    </div>
+  </div>
+</header>
+
+<div class="ticker-wrap" id="tickerWrap">
+  <div class="ticker-label">TOP PICKS</div>
+  <div style="overflow:hidden;flex:1">
+    <div class="ticker-scroll" id="tickerContent"></div>
+  </div>
+</div>
+
+<div class="stats-bar">
+  <div class="stats-bar-inner">
+    <div class="stat-item"><span class="live-dot"></span>&nbsp;<span class="stat-label">Live</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><span class="stat-label">Games Today</span><span class="stat-val" id="statGames">—</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><span class="stat-label">Batters Analyzed</span><span class="stat-val" id="statBatters">—</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><span class="stat-label">Elite Picks &gt;30%</span><span class="stat-val" id="statElite" style="color:var(--gold)">—</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-item"><span class="stat-label">Last Updated</span><span class="stat-val" id="statUpdated">—</span></div>
+  </div>
+</div>
+
+<main>
+  <div class="filters">
+    <span class="filter-label">Filter:</span>
+    <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn" onclick="setFilter('elite',this)">🔥 Elite (&gt;30%)</button>
+    <button class="filter-btn" onclick="setFilter('value',this)">💎 Value</button>
+    <button class="filter-btn" onclick="setFilter('home',this)">🏟 Home</button>
+    <button class="filter-btn" onclick="setFilter('away',this)">✈️ Away</button>
+    <input class="search-box" type="text" id="searchBox" placeholder="Search player or team..." oninput="renderAll()">
+  </div>
+
+  <div id="eliteSection" style="display:none;margin-bottom:2.5rem">
+    <div class="section-header">
+      <span class="section-title">Elite Picks</span>
+      <span class="elite-marker">★ &gt;30% HR Probability</span>
+      <span class="section-count" id="eliteCount">0</span>
+    </div>
+    <div class="cards-grid" id="eliteGrid"></div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-title" id="allTitle">All Predictions</span>
+    <span class="section-count" id="allCount">0</span>
+  </div>
+  <div id="mainContent"></div>
+</main>
+
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modalBox">
+    <div class="modal-header">
+      <div>
+        <div id="modalTitle" style="font-size:20px;font-weight:600;margin-bottom:4px"></div>
+        <div id="modalSub" style="font-size:13px;color:var(--text2)"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <p style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--text2);margin-bottom:8px">HR DEMONS</p>
+    <p class="disclaimer">AI-powered daily MLB home run predictions. Batter vs pitcher analysis, park factors, exit velocity, barrel rate & historical HR rates. For informational purposes only. Not affiliated with MLB. Data refreshes daily.</p>
+  </div>
+</footer>
+
+<script>
+// Claude key removed from browser. Frontend now calls secure Netlify backend.
+let allPredictions = [];
+let currentFilter = 'all';
+let isLoading = false;
+
+document.getElementById('dateBadge').textContent = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+async function loadPredictions(){
+  if(isLoading) return;
+  isLoading = true;
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = '⟳ Fetching...';
+  document.getElementById('mainContent').innerHTML = `<div class="loading-state"><div class="spinner"></div><div style="font-size:15px;margin-bottom:6px">Analyzing today's matchups...</div><div style="font-size:12px;color:var(--text3)">Fetching batter vs pitcher data, park factors &amp; recent form</div></div>`;
+  document.getElementById('eliteSection').style.display='none';
+
+  try {
+    const res = await fetch('/.netlify/functions/predictions', { cache: 'no-store' });
+    const data = await res.json();
+    if(!res.ok){
+      throw new Error(data.error || `API error ${res.status}`);
+    }
+    if(!Array.isArray(data.predictions)) throw new Error('No prediction data found. Try again after scheduled update.');
+    allPredictions = data.predictions;
+    renderAll();
+    buildTicker();
+    document.getElementById('statUpdated').textContent = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('tickerWrap').style.display = 'flex';
+  } catch(e){
+    document.getElementById('mainContent').innerHTML = `<div class="error-state">
+      <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+      <div style="font-size:16px;margin-bottom:8px">Failed to load predictions</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px">${e.message}</div>
+      <button onclick="loadPredictions()" style="background:var(--gold);color:#000;border:none;border-radius:6px;padding:10px 20px;cursor:pointer;font-family:inherit;font-weight:600">Try Again</button>
+    </div>`;
+  }
+  isLoading = false;
+  btn.disabled = false;
+  btn.textContent = '↺ Refresh';
+}
+
+function renderAll(){
+  let filtered = [...allPredictions];
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  if(search) filtered = filtered.filter(p=>
+    p.player.toLowerCase().includes(search)||
+    p.team.toLowerCase().includes(search)||
+    p.opponent.toLowerCase().includes(search)||
+    (p.pitcher||'').toLowerCase().includes(search)
+  );
+  if(currentFilter==='elite') filtered = filtered.filter(p=>p.hrProbability>30);
+  else if(currentFilter==='value') filtered = filtered.filter(p=>p.hrProbability>=15&&p.hrProbability<=30);
+  else if(currentFilter==='home') filtered = filtered.filter(p=>p.homeAway==='home');
+  else if(currentFilter==='away') filtered = filtered.filter(p=>p.homeAway==='away');
+  filtered.sort((a,b)=>b.hrProbability-a.hrProbability);
+
+  const elite = filtered.filter(p=>p.hrProbability>30);
+  const rest = filtered.filter(p=>p.hrProbability<=30);
+
+  const games = new Set(allPredictions.map(p=>p.team+p.opponent)).size;
+  document.getElementById('statGames').textContent = games;
+  document.getElementById('statBatters').textContent = allPredictions.length;
+  document.getElementById('statElite').textContent = allPredictions.filter(p=>p.hrProbability>30).length;
+
+  if(currentFilter==='all' && elite.length>0 && !search){
+    document.getElementById('eliteSection').style.display='block';
+    document.getElementById('eliteCount').textContent = elite.length;
+    document.getElementById('eliteGrid').innerHTML = elite.map(p=>cardHTML(p,true)).join('');
+    document.getElementById('allTitle').textContent = 'All Predictions';
+    document.getElementById('allCount').textContent = rest.length;
+    document.getElementById('mainContent').innerHTML = `<div class="cards-grid">${rest.map(p=>cardHTML(p,false)).join('')}</div>`;
+  } else {
+    document.getElementById('eliteSection').style.display='none';
+    document.getElementById('allTitle').textContent = currentFilter==='elite'?'Elite Picks':'All Predictions';
+    document.getElementById('allCount').textContent = filtered.length;
+    document.getElementById('mainContent').innerHTML = `<div class="cards-grid">${filtered.map(p=>cardHTML(p,p.hrProbability>30)).join('')}</div>`;
+  }
+}
+
+function cardHTML(p, isElite){
+  const initials = p.player.split(' ').map(n=>n[0]).join('').slice(0,2);
+  const pct = p.hrProbability;
+  const pctClass = pct>=30?'high':pct>=20?'medium':'';
+  const confClass = pct>=30?'gold':pct>=20?'orange':'blue';
+  const safeId = encodeURIComponent(p.player);
+  const factors = (p.factors||[]).slice(0,4).map(f=>`<span class="factor-tag ${f.type||''}"><span style="font-size:9px">${f.type==='pos'?'▲':'▼'}</span>${f.label}</span>`).join('');
+  return `<div class="pred-card${isElite?' elite':''}" onclick="openModal('${safeId}')">
+    <div class="card-header">
+      <div class="player-info">
+        <div class="avatar">${initials}</div>
+        <div>
+          <div class="player-name">${p.player}</div>
+          <div class="player-team">${p.team} &nbsp;·&nbsp; vs ${p.pitcher||p.opponent}</div>
+        </div>
+      </div>
+      <div class="hr-odds-badge">
+        <div class="odds-pct ${pctClass}">${pct}%</div>
+        <div class="odds-label">HR Prob</div>
+      </div>
+    </div>
+    <div class="card-matchup">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span>${p.team}</span>
+        <span class="vs-badge">vs</span>
+        <span>${p.opponent}</span>
+        <span class="home-away">${p.homeAway==='home'?'🏟 Home':'✈️ Away'}</span>
+      </div>
+      <span class="game-time">${p.gameTime||''}</span>
+    </div>
+    <div class="card-stats">
+      <div class="mini-stat"><div class="mini-stat-val gold">${p.hrSeason||'—'}</div><div class="mini-stat-label">HRs 2025</div></div>
+      <div class="mini-stat"><div class="mini-stat-val green">${p.avgExitVelo||'—'}</div><div class="mini-stat-label">Exit Velo</div></div>
+      <div class="mini-stat"><div class="mini-stat-val">${p.barrelRate||'—'}%</div><div class="mini-stat-label">Barrel%</div></div>
+    </div>
+    <div class="card-factors">${factors}</div>
+    <div class="card-footer">
+      <div class="conf-bar-wrap">
+        <div class="conf-label">Confidence</div>
+        <div class="conf-bar"><div class="conf-fill ${confClass}" style="width:${Math.min(100,p.confidence||50)}%"></div></div>
+      </div>
+      <button class="detail-btn">Details →</button>
+    </div>
+  </div>`;
+}
+
+function openModal(safeId){
+  const name = decodeURIComponent(safeId);
+  const p = allPredictions.find(x=>x.player===name);
+  if(!p) return;
+  document.getElementById('modalTitle').textContent = p.player;
+  document.getElementById('modalSub').textContent = `${p.team} · vs ${p.opponent} · ${p.gameTime||''}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-section">
+      <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px 24px;text-align:center;flex:1;min-width:120px">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--gold);line-height:1">${p.hrProbability}%</div>
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-top:4px">HR Probability</div>
+        </div>
+        <div style="flex:2;min-width:180px">
+          <div class="modal-section-title">Today's Matchup</div>
+          <div style="font-size:15px;color:var(--text);margin-bottom:6px">vs ${p.pitcher||p.opponent}</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:4px">📍 ${p.park||'—'} &nbsp;·&nbsp; ${p.homeAway==='home'?'Home':'Away'}</div>
+          <div style="font-size:13px;color:var(--text2)">🕐 ${p.gameTime||'—'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Batter Profile</div>
+      ${radarRow('HRs This Season', p.hrSeason, '#f5c842', p.hrSeason, 50)}
+      ${radarRow('Avg Exit Velocity', (p.avgExitVelo||0)+' mph', '#22c55e', ((p.avgExitVelo||85)-85)/25*100, 100)}
+      ${radarRow('Barrel Rate', (p.barrelRate||0)+'%', '#3b82f6', p.barrelRate, 20)}
+      ${radarRow('ISO Power', p.iso||0, '#f97316', (p.iso||0)*400, 100)}
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Key Factors</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        ${(p.factors||[]).map(f=>`<span class="factor-tag ${f.type||''}" style="font-size:12px;padding:5px 10px"><span style="font-size:9px">${f.type==='pos'?'▲':'▼'}</span>${f.label}</span>`).join('')}
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">AI Analysis</div>
+      <p style="font-size:14px;color:var(--text2);line-height:1.7">${p.analysis||'Analysis not available.'}</p>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--text3)">Model Confidence</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:120px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden"><div style="width:${p.confidence||50}%;height:100%;background:var(--gold);border-radius:3px"></div></div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--gold)">${p.confidence||50}%</span>
+      </div>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function radarRow(label,val,color,raw,max){
+  const pct = Math.min(100,Math.max(0,(Number(raw)/max)*100))||0;
+  return `<div class="radar-row">
+    <span class="radar-label">${label}</span>
+    <div class="radar-bar-wrap"><div class="radar-fill" style="width:${pct.toFixed(0)}%;background:${color}"></div></div>
+    <span class="radar-val">${val}</span>
+  </div>`;
+}
+
+function handleOverlayClick(e){
+  if(e.target===document.getElementById('modalOverlay')) closeModal();
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+document.getElementById('modalBox').addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+
+function buildTicker(){
+  const top = [...allPredictions].sort((a,b)=>b.hrProbability-a.hrProbability).slice(0,10);
+  const items = top.map(p=>`<div class="ticker-item"><span class="ticker-name">${p.player}</span><span style="color:var(--text3)">${p.team} vs ${p.opponent}</span><span class="ticker-odds">${p.hrProbability}% HR</span></div>`);
+  document.getElementById('tickerContent').innerHTML = [...items,...items].join('');
+}
+
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+// Auto-refresh every 30 minutes
+setInterval(()=>{ if(!isLoading && !document.hidden) loadPredictions(); }, 30*60*1000);
+
+loadPredictions();
+</script>
+</body>
+</html>
